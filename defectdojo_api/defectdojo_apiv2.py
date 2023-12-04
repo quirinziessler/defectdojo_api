@@ -280,7 +280,7 @@ class DefectDojoAPIv2(object):
         """
         return self._request('DELETE', f'users/{user_id}/')
 
-    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosec
+    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosemgrep
         """password have to change this is justfor development use only"""
         data={"username":user_name,
               "is_active":is_active,
