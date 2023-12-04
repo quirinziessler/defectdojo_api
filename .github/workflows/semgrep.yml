@@ -35,3 +35,4 @@ jobs:
           # Generate a token from Semgrep Cloud Platform > Settings
           # and add it to your GitHub secrets.
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    continue-on-error: false
