@@ -1711,29 +1711,61 @@ class DefectDojoAPIv2(object):
 
     ##### Re-upload API #####
 
-    def reupload_scan(self, test_id, scan_type, active, verified, scan_date, file=None, close_old_findings=True, do_not_reactivate=False, deduplication_on_engagement=True, tags=None, build=None, minimum_severity="Low"):
+    def reupload_scan(self, file, scan_type, test= None, active=None, scan_date=None, tags=None, verified=None, do_not_reactivate=None, 
+                      endpoint_to_add=None, product_type_name=None, product_name=None, engagement_name=None, engagement_end_date=None, source_code_management_uri=None, 
+                      test_title=None, auto_create_context=None, deduplication_on_engagement=None, push_to_jira=None, close_old_findings=None, 
+                      close_old_findings_product_scope=None, build_id=None, api_scan_configuration=None, service=None, 
+                      lead=None, group_by=None, create_finding_groups_for_all_findings=None, engagement_id=None, product_id=None, product_type_id=None, 
+                      build=None, version=None, branch_tag=None, commit_hash=None,
+                      minimum_severity="Info", auto_group_by=None, environment=None):
         """Re-uploads and processes a scan file.
 
         :param test_id: Test identifier.
         :param file: Path to the scan file to be uploaded.
 
         """
-
         if build is None:
             build = ''
 
         data = {
-            'test': ('', test_id),
+            'test': ('', test),
+            'file': open(file, 'rb'),
             'scan_type': ('', scan_type),
             'active': ('', active),
+            'scan_date': ('', scan_date),
+            'tags': ('', tags),
+            'commit_hash': ('', commit_hash),
+	        'minimum_severity': ('', minimum_severity),
             'verified': ('', verified),
             'do_not_reactivate': ('', do_not_reactivate),
+            'endpoint_to_add': ('', endpoint_to_add),
+            'product_type_name': ('', product_type_name),
+            'product_name': ('', product_name),
+            'engagement_name': ('', engagement_name),
+            'engagement_end_date': ('', engagement_end_date),
+            'source_code_management_uri': ('', source_code_management_uri),
+            'test_title': ('', test_title),
+            'auto_create_context': ('', auto_create_context),
             'deduplication_on_engagement': ('', deduplication_on_engagement),
+            'push_to_jira': ('', push_to_jira),
             'close_old_findings': ('', close_old_findings),
-            'scan_date': ('', scan_date),
-            'build_id': ('', build),
-	        'minimum_severity': ('', minimum_severity)
+            'close_old_findings_product_scope': ('', close_old_findings_product_scope),
+            'version': ('', version),
+            'build_id': ('', build_id),
+            'branch_tag': ('', branch_tag),
+            'api_scan_configuration': ('', api_scan_configuration),
+            'service': ('', service),
+            'environment': ('', environment),
+            'lead': ('', lead),
+            'group_by': ('', group_by),
+            'create_finding_groups_for_all_findings': ('', create_finding_groups_for_all_findings),
+            'engagement_id': ('', engagement_id),
+            'product_id': ('', product_id),
+            'product_type_id': ('', product_type_id),
         }
+
+        if auto_group_by:
+            data['auto_group_by'] = (auto_group_by, '')
 
         if tags != None:
             data["tags"] = tags
@@ -1746,7 +1778,7 @@ class DefectDojoAPIv2(object):
         return self._request(
             'POST', 'reimport-scan/',
             files=data
-        )
+        )        
 
     ##### Credential API #####
 
