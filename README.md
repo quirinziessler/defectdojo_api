@@ -1,4 +1,7 @@
-THIS API WRAPPER IS NO LONGER MAINTAINED. IT MAY OR MAY NOT WORK
+This API wrapper is a updated version of the official one from defectdojo, that works for my purpose. Feel free to open up a PR and help to built it up to the latest version.
+
+
+
 ========
 
 See `clients and api wrappers in the docs <https://defectdojo.github.io/django-DefectDojo/integrations/api-v2-docs/#clients--api-wrappers>`_ for alternatives
