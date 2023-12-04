@@ -1,25 +1,23 @@
 import json
 import requests
 import requests.exceptions
-import requests.packages.urllib3
-import logging
+import urllib3
+import datetime
 
-requests.packages.urllib3.add_stderr_logger()
+urllib3.add_stderr_logger()
 
-version = "1.2.0."
-
-LOGGER_NAME = "defectdojo_api"
+version = "1.1.6.dev2"
 
 class DefectDojoAPIv2(object):
     """An API wrapper for DefectDojo."""
 
-    def __init__(self, host, api_token, user, api_version='v2', verify_ssl=True, timeout=60, proxies=None, user_agent=None, cert=None, debug=False):
+    def __init__(self, host, api_token, user, api_version='v2', verify_ssl=True, timeout=4000, proxies=None, user_agent=None, cert=None, debug=False):
         """Initialize a DefectDojo API instance.
 
         :param host: The URL for the DefectDojo server. (e.g., http://localhost:8000/DefectDojo/)
         :param api_token: The API token generated on the DefectDojo API key page.
         :param user: The user associated with the API key.
-        :param api_version: API version to call, the default is v2.
+        :param api_version: API version to call, the default is v1.
         :param verify_ssl: Specify if API requests will verify the host's SSL certificate, defaults to true.
         :param timeout: HTTP timeout in seconds, default is 30.
         :param proxis: Proxy for API requests.
@@ -30,7 +28,7 @@ class DefectDojoAPIv2(object):
 
         """
 
-        self.host = host + '/api/' + api_version + '/'
+        self.host = str(host) + '/api/' + str(api_version) + '/'
         self.api_token = api_token
         self.user = user
         self.api_version = api_version
@@ -44,17 +42,10 @@ class DefectDojoAPIv2(object):
             self.user_agent = user_agent
 
         self.cert = cert
-
-        self.logger = logging.getLogger(LOGGER_NAME)
-        self.logger.setLevel(logging.DEBUG)
-        if not debug:
-            # Configure the default logging level to warning instead of debug for request library
-            logging.getLogger("requests").setLevel(logging.WARNING)
-            logging.getLogger("urllib3").setLevel(logging.WARNING)
-            self.logger.setLevel(logging.WARNING)
+        self.debug = debug  # Prints request and response information.
 
         if not self.verify_ssl:
-            requests.packages.urllib3.disable_warnings()  # Disabling SSL warning messages if verification is disabled.
+            urllib3.disable_warnings()  # Disabling SSL warning messages if verification is disabled.
 
     def version_url(self):
         """Returns the DefectDojo API version.
@@ -70,10 +61,111 @@ class DefectDojoAPIv2(object):
         """
         url = url.split('/')
         return url[len(url)-2]
+    ###### Global Roles#######
+    def get_roles(self, limit=20000):
+        """Retrieves all dojo_roles like Maintainer, Owner"""
+        params  = {}
+        if limit:
+            params['limit'] = limit
+        return self._request('GET', 'roles/', params)
 
+    def get_global_roles(self, limit=20000):
+        """Retrieves all dojo_global_roles"""
+        params  = {}
+        if limit:
+            params['limit'] = limit
+        return self._request('GET', 'global_roles/', params)    
+    
+    def post_user_global_role(self, user_id, group=None, role=None):
+        """ adds a user to a global role"""
+        data = {}
+        data['user'] = user_id
+        if group:
+            data['group'] = group
+        else:
+            data['group'] = None #can specify the product group here, irritating because of product_role call
+        data['role'] = role
+        return self._request('POST', 'global_roles/', data=data)
+
+    def patch_user_global_role(self, id, user_id, group=None, role=None):
+        """ adds a user to a global role"""
+        data = {}
+        data['user'] = user_id
+        data['group'] = group #can specify the product group here, irritating because of product_role call
+        data['role'] = role
+        return self._request('PATCH', 'global_roles/'+ str(id) + '/', data=data)
+
+    ###### Dojo Group API and Dojo Group Member API and Product Group API#######
+    def list_dojo_groups(self, limit=20000):
+        """Retrieves all dojo_groups"""
+        params  = {}
+        if limit:
+            params['limit'] = limit
+        return self._request('GET', 'dojo_groups/', params)
+    
+    def list_dojo_group_members(self, id=None, group_id=None):
+        """Retrieves all dojo_groups"""
+        params  = {}
+        if group_id != None:
+            params["group_id"]=group_id
+
+        if id != None:
+            return self._request('GET', 'dojo_group_members/'+ str(id) + '/', params=params)
+        else: 
+            return self._request('GET', 'dojo_group_members/',params=params)
+
+    def create_dojo_group(self,name,description=None,social_provider=None):
+        data={}
+        if name:
+            data['name'] = name
+        if description:
+            data['description'] = description
+        if social_provider:
+            data['social_provider'] = social_provider
+        return self._request('POST','dojo_groups/',data=data)
+
+    def post_dojo_group_members(self,group,user,role):
+        """POST group members"""
+        data={}
+        data['group'] = group
+        data['user'] = user
+        data['role'] = role
+        return self._request('POST','dojo_group_members/',data=data)
+
+    def put_dojo_group_members(self,id,group,user,role):
+        """PUT group members"""
+        data={}
+        data['group'] = group
+        data['user'] = user
+        data['role'] = role
+        return self._request('PUT','dojo_group_members/'+ str(id) + '/',data=data)
+
+    def delete_dojo_group_members(self,id):
+        """Delete group members"""
+        return self._request('DELETE','dojo_group_members/'+ str(id) + '/')
+
+    def post_product_group(self,product,group,role):
+        """POST group members"""
+        data={}
+        data['product'] = product
+        data['group'] = group
+        data['role'] = role
+        return self._request('POST','product_groups/',data=data)
+
+    def delete_product_group(self,group):
+        """Delete group members"""
+        return self._request('DELETE', 'product_groups/' + str(group) + '/')
+
+    def get_dojo_product_group_member(self, product_id, limit=20000):
+        """Retrieves all member of dojo_product_groups"""
+        params  = {}
+        if limit:
+            params['limit'] = limit
+        params['product_id'] = product_id
+        return self._request('GET', 'product_groups/', params)
 
     ###### User API #######
-    def list_users(self, username=None, limit=20):
+    def list_users(self, username=None, email=None,limit=20000):
         """Retrieves all the users.
 
         :param username: Search by username.
@@ -86,10 +178,63 @@ class DefectDojoAPIv2(object):
 
         if username:
             params['username'] = username
+        if email:
+            params['email'] = email
 
         return self._request('GET', 'users/', params)
 
-    def get_user(self, user_id):
+    def list_users_names(self):
+        """ list all user names """
+        out=self.list_users().data['results']
+        output=[]
+        for iterator in out:
+            output.append(iterator['username'])
+        return output
+    
+    def list_users_emails(self):
+        """ list all users email """
+        out = self.list_users().data['results']
+        output = []
+        for iterator in out:
+            output.append(iterator['email'])
+        return output
+
+    def get_user_id_by_name(self, user_name):
+        """Retrieves a user using the given user name."""
+        req=self.list_users(username=user_name).data['results']
+        output=None
+        for iterate in req:
+            if str(user_name)==iterate['username']:
+                output=iterate['id']
+        return output
+
+    def get_user_by_name(self, user_name):
+        """Retrieves a user using the given user name."""
+
+        req = self.list_users(username=user_name).data['results']
+        for iterate in req:
+            if user_name == iterate['username']:
+                output = self.get_user_by_id(iterate['id'])
+        return output
+    def get_user_by_email(self, email):
+        """Retrieve user by given email
+        :param email: User email
+        """
+        output=self._request('GET', '/users',params={'email':email}).data['results']
+        if len(output) > 0:
+            return output[0]
+        else:
+            return None
+    
+    def get_user_id_by_email(self, email):
+        req = self.list_users(email=email).data['results']
+        output = None
+        for iterate in req:
+            if str(email) == iterate['email']:
+                output = iterate['id']
+        return output
+        
+    def get_user_by_id(self, user_id):
         """Retrieves a user using the given user id.
 
         :param user_id: User identification.
@@ -97,43 +242,80 @@ class DefectDojoAPIv2(object):
         """
         return self._request('GET', 'users/' + str(user_id) + '/')
 
-    def patch_user(self, user_id,data):
-        """modifies a user using the given user id.
+    def patch_user(self, user_id, is_active = None, is_superuser = None, password = None, email = None, first_name = None, last_name = None, username = None):
+        """Retrieves a user using the given user id.
 
         :param user_id: User identification.
 
         """
-        return self._request('PATCH', 'users/' + str(user_id) + '/', data=data)
-    
-    def get_user_api_key(self,username, password):
-        """Retrieves the user API key 
-            is useful to import reports and findings from other tools, 
-            since findings owner in API are set to the user calling the API
-        """
-        data = {
-            'username': username,
-            'password': password
-        }
-        return self._request('POST', 'api-token-auth/', data=data)
+        data = {}
 
+        if username:
+            data['username'] = username
+
+        if is_active:
+            data['is_active'] = is_active
+
+        if is_superuser:
+            data['is_superuser'] = is_superuser
+
+        if password:
+            data["password"] = password
+        
+        if first_name:
+            data["first_name"] = first_name
+
+        if last_name:
+            data["last_name"] = last_name
+
+        if email:
+            data["email"] = email
+
+        return self._request('PATCH', 'users/' + str(user_id) + '/', data=data)
+
+    def delete_user(self, user_id):
+        """Delete a user using the given user id.
+        Args:
+            user_id (int): A unique integer value identifying ths user.
+        """
+        return self._request('DELETE', f'users/{user_id}/')
+
+    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosec
+        """password have to change this is justfor development use only"""
+        data={"username":user_name,
+              "is_active":is_active,
+              "password":password}
+        if first_name:
+            data['first_name'] = first_name
+        if last_name:
+            data['last_name'] = last_name
+        if email:
+            data['email'] = email
+        if is_superuser:
+            data['is_superuser'] = is_superuser
+        return self._request('POST','users/',data=data)
+
+    def delete_preview_user(self,user_id,limit=2000):
+        """checks if a user can be safely deleted"""
+        params = {}
+        if limit:
+            params['limit'] = limit
+        
+        return self._request('GET',f'users/{user_id}/delete_preview/', params).data['results']
 
     ###### Engagements API #######
-    def list_engagements(self, status=None, product_id=None, name_contains=None, name=None, limit=20, offset=0, related_fields=False):
+    def list_engagements(self, status=None, product_id=None, limit=20000):
         """Retrieves all the engagements.
 
         :param product_in: List of product ids (1,2).
         :param name_contains: Engagement name
         :param limit: Number of records to return.
-        :param offset: The initial index from which to return the result
 
         """
 
-        params  = {}
+        params = {}
         if limit:
             params['limit'] = limit
-
-        if offset:
-            params['offset'] = offset
 
         if product_id:
             params['product'] = product_id
@@ -141,25 +323,89 @@ class DefectDojoAPIv2(object):
         if status:
             params['status'] = status
 
-        if related_fields:
-            params['related_fields'] = 'true'
-
-        # TODO remove name_contains here, or add to Defect Dojo. Currently it does nothing
-        if name_contains:
-             params['name_contains'] = name_contains
-
-        if name:
-            params['name'] = name
-
         return self._request('GET', 'engagements/', params)
 
-    def get_engagement(self, engagement_id):
+    def list_engagement_ids_name_contains(self, name_contains=None, limit=20000):
+        """Retrieves all the engagements.
+
+        :param product_in: List of product ids (1,2).
+        :param name_contains: Engagement name
+        :param limit: Number of records to return.
+
+        """
+
+        params = {}
+        if limit:
+            params['limit'] = limit
+
+        if name_contains:
+            out=self._request('GET', 'engagements/', params)
+            engagement=out.data['results']
+            name_list=list()
+            import re
+            for engage in engagement:
+                if re.search(name_contains.lower(),engage['name'].lower()):
+                    name_list.append(engage['id'])
+        return name_list
+
+    def get_engagement_by_id(self, engagement_id):
         """Retrieves an engagement using the given engagement id.
 
         :param engagement_id: Engagement identification.
 
         """
         return self._request('GET', 'engagements/' + str(engagement_id) + '/')
+
+    def get_engagement_id_by_name(self, engagement_name, product_name = None, exact_product_name=None):
+        if exact_product_name != None:
+            product_id = self.get_product_id_by_exact_name(product_name=exact_product_name)
+        else:
+            product_id = self.get_product_id_by_name(product_name=product_name)
+        result = [ engagement for engagement in self.list_engagements(limit=20000).data['results'] if engagement['product'] == product_id and engagement['active'] != False and engagement['name'] == engagement_name ]
+        return result[0]['id'] if len(result) == 1 else False
+
+    def post_engagement_report(self,engagement_id, fulldata=False, include_executive_summary=False):
+        data = {}
+        if include_executive_summary == False:
+            data['include_executive_summary'] = False
+        else:
+            data['include_executive_summary'] = True
+        if fulldata == False:
+            data['include_finding_notes'] = False
+            data['include_finding_images'] = False
+            data['include_table_of_contents'] = False
+            return self._request('POST','engagements/'+ str(engagement_id) + '/generate_report/', data=data)
+        else:
+            self._request('POST','engagements/'+ str(engagement_id) + '/generate_report/')
+
+    def list_engagement_ids_by_product_id(self, product_id):
+        req=self.list_engagements(limit=20000).data['results']
+        engagement_list=[]
+        for iterator in req:
+            if str(iterator['product'])==str(product_id) and str(iterator['active']) != 'False':
+                appendant=iterator['id']
+                engagement_list.append(appendant)
+        return engagement_list
+
+    def list_engagement_ids_by_product_name(self, name):
+        req=self.list_engagements(limit=20000).data['results']
+        product_id=self.get_product_id_by_name(name)
+        engagement_list=[]
+        for iterator in req:
+            if str(iterator['product'])==str(product_id) and str(iterator['active']) != 'False':
+                appendant = iterator['id']
+                engagement_list.append(appendant)
+        return engagement_list
+
+    def list_engagement_names_by_product_name(self, name):
+        req=self.list_engagements(limit=20000).data['results']
+        product_id=self.get_product_id_by_name(name)
+        engagement_list=[]
+        for iterator in req:
+            if str(iterator['product'])==str(product_id) and str(iterator['active']) != 'False':
+                appendant = iterator['name']
+                engagement_list.append(appendant)
+        return engagement_list
 
     def create_engagement(self, name, product_id, lead_id, status, target_start, target_end, active='True',
         pen_test='False', check_list='False', threat_model='False', risk_path="",test_strategy="", progress="",
@@ -188,7 +434,7 @@ class DefectDojoAPIv2(object):
         :param source_code_management_server: URL of source code management
         :param source_code_management_uri: Link to source code commit
         :param orchestration_engine: URL of orchestration engine
-        :param deduplication_on_engagement: voolean value for deduplication_on_engagement
+        :param deduplication_on_engagement: boolean value for deduplication_on_engagement
 
         """
 
@@ -246,7 +492,7 @@ class DefectDojoAPIv2(object):
         :param user_id: User from the user table.
         """
 
-        self.set_engagement(id, status="Completed", active=False)
+        return self._request('POST', 'engagements/{id}/close')
 
     def set_engagement(self, id, product_id=None, lead_id=None, name=None, status=None, target_start=None,
         target_end=None, active=None, pen_test=None, check_list=None, threat_model=None, risk_path=None,
@@ -323,44 +569,74 @@ class DefectDojoAPIv2(object):
         if done_testing:
             data['done_testing'] = done_testing
 
-        if build_id:
-            data['build_id'] = build_id
-
-        if commit_hash:
-            data['commit_hash'] = commit_hash
+        if engagement_type:
+            data['engagement_type'] = engagement_type
 
         if description:
             data['description'] = description
+        
+        if source_code_management_uri:
+            data['source_code_management_uri'] = source_code_management_uri
+        
+        if branch_tag:
+            data['branch_tag'] = branch_tag
 
         return self._request('PATCH', 'engagements/' + str(id) + '/', data=data)
+    
+    def delete_engagement(self,engagement_id):
+        """ Delete engagement using engagement id
+        """
+        return self._request('DELETE', 'engagements/' + str(engagement_id) + '/')
+
+   ###### Product_Types API #######
+
+    def get_product_types(self):
+        """Returns the DefectDojo API URI for the product_types.
+            Output is a List of all product_types
+        """
+        request=self._request('GET', 'product_types/',).data["results"]
+        output=[]
+        for iterator in request:
+            cache={str(iterator["name"])} #TODO make a dictionary
+            output.append(cache)
+        return output
+
+    def get_product_types_id_and_name(self):
+        request=self._request('GET', 'product_types/',).data["results"]
+        return request
+
+    def get_product_type_id_by_name(self, name):
+        """Returns the DefectDojo API URI for the product_types.
+                    Output is the id of the product_type
+                """
+        request = self._request('GET', 'product_types/', ).data["results"]
+        output = []
+        for iterator in request:
+            if str(iterator["name"]) == name:
+                output = str(iterator["id"])
+        return output
+
+    def create_product_type(self, product_type_name):
+        """Creates a product_type"""
+
+        data = {
+            'name': product_type_name
+        }
+        return self._request('POST', 'product_types/', data=data)
+
+    def delete_product_type(self, product_type_id):
+        """Delete a product_type"""
+
+        return self._request('DELETE', 'product_types/' + str(product_type_id) + '/')
 
     ###### Product API #######
-    def set_product_metadata(self, product_id, name=None, value=None):
-        """Add a custom field to a product.
-
-        :param product_id: Product ID.
-        :param meta_data: name/value array.
-
-        """
-        data = {
-            'product': product_id,
-            'name': name,
-            'value': value
-        }
-        headers = {
-            'product_id': '{}'.format(product_id)
-        }
-
-        return self._request('POST', 'metadata/', data=data, custom_headers=headers)
-
-    def list_products(self, name=None, name_contains=None, limit=200, offset=0, related_fields=False):
-
+    def list_products(self, name=None, name_contains=None, limit=20000,name_exact=None):
         """Retrieves all the products.
 
         :param name: Search by product name.
         :param name_contains: Search by product name.
         :param limit: Number of records to return.
-        :param offset: The initial index from which to return the results.
+        :param name_exact: exact product name to search.
 
         """
 
@@ -368,20 +644,60 @@ class DefectDojoAPIv2(object):
         if limit:
             params['limit'] = limit
 
-        if offset:
-            params['offset'] = offset
-
         if name:
             params['name'] = name
 
         if name_contains:
             params['name__icontains'] = name_contains
-        if related_fields:
-            params['related_fields'] = 'true'
-
+        
+        if name_exact:
+            params['name_exact'] = name_exact
+            
         return self._request('GET', 'products/', params)
 
-    def get_product(self, product_id):
+    def get_products_names(self):
+        """ Get a List of all Product_names"""
+        product_names_list=[]
+        output=self.list_products().data["results"]
+        for iterator in output:
+            product_names_list.append(iterator["name"])
+        return product_names_list
+
+    def get_product_id_by_name(self, product_name):
+        try:
+            product_id = self.list_products(name=product_name).data['results'][0]['id']
+        except (NameError, IndexError):
+            product_id=False
+        return product_id
+    
+    def get_product_id_by_exact_name(self, product_name):
+        try:
+            product_id = self.list_products(name_exact=product_name).data['results'][0]['id']
+        except (NameError, IndexError):
+            product_id=False
+        return product_id
+
+    def get_product_description_by_name(self, product_name):
+        output=self.get_product_by_name(product_name)
+        return output.data["description"]
+
+    def get_product_type_by_name(self, product_name):
+        output=self.get_product_by_name(product_name)
+        return output.data["prod_type"]
+
+    def get_product_by_name(self, product_name):
+        output = self.list_products().data["results"]
+
+        for iterator in output:
+            if iterator["name"] == product_name:
+                product_id=iterator["id"]
+        try:
+            product=self.get_product_by_id(product_id)
+        except:
+            product=False
+        return product
+
+    def get_product_by_id(self, product_id):
         """Retrieves a product using the given product id.
 
         :param product_id: Product identification.
@@ -389,14 +705,7 @@ class DefectDojoAPIv2(object):
         """
         return self._request('GET', 'products/' + str(product_id) + '/')
 
-    def get_product_list_by_name(self, product_name):
-#       Retrieves a product list by using the product name 
-        #Note (search is made with Like.
-
-        return self._request('GET', 'products/?name=' + str(product_name))
-
-
-    def create_product(self, name, description, prod_type):
+    def create_product(self, name, description, prod_type, tags = None):
         """Creates a product with the given properties.
 
         :param name: Product name.
@@ -411,27 +720,45 @@ class DefectDojoAPIv2(object):
             'prod_type': prod_type
         }
 
+        if tags:
+            data['tags'] = tags
+
         return self._request('POST', 'products/', data=data)
 
-    def create_product(self, name, description, prod_type):
-        """Creates a product with the given properties.
+    def delete_product(self, product_id):
+        """Deletes a product using the given product id.
 
+        :param product_id: Product identification.
+
+        """
+        return self._request('DELETE', 'products/' + str(product_id) + '/')
+
+    def set_product(self, product_id, name=None, description=None, prod_type=None, tags=None):
+        """Updates a product with the given properties.
+
+        :param product_id: Product ID
         :param name: Product name.
-        :param description: Product description..
+        :param description: Product key id..
         :param prod_type: Product type.
 
         """
+        data = {}
 
-        data = {
-            'name': name,
-            'description': description,
-            'prod_type': prod_type
-        }
+        if name:
+            data['name'] = name
 
-        return self._request('POST', 'products/', data=data)
+        if description:
+            data['description'] = description
 
+        if prod_type:
+            data['prod_type'] = prod_type
 
-    def set_product(self, product_id, name=None, description=None, prod_type=None):
+        if tags:
+            data['tags'] = tags
+
+        return self._request('PUT', 'products/' + str(product_id) + '/', data=data)
+
+    def patch_product(self, product_id, name=None, description=None, prod_type=None, authorized_users=None, enable_simple_risk_acceptance=None):
         """Updates a product with the given properties.
 
         :param product_id: Product ID
@@ -452,17 +779,212 @@ class DefectDojoAPIv2(object):
         if prod_type:
             data['prod_type'] = prod_type
 
-        return self._request('PUT', 'products/' + str(product_id) + '/', data=data)
+        if authorized_users: #TODO Test
+            data['authorized_users'] = authorized_users
 
-    def delete_product(self, product_id):
+        if enable_simple_risk_acceptance:
+            data['enable_simple_risk_acceptance'] = enable_simple_risk_acceptance
+
+        return self._request('PATCH', 'products/' + str(product_id) + '/', data=data)
+
+    def post_product_report(self,product_id, fulldata=False):
+        if fulldata == False:
+            data = {}
+            data['include_finding_notes'] = False
+            data['include_finding_images'] = False
+            data['include_executive_summary'] = False
+            data['include_table_of_contents'] = False
+            return self._request('POST','products/'+ str(product_id) + '/generate_report/', data=data)
+        else:
+            return self._request('POST','products/'+ str(product_id) + '/generate_report/')
+        
+    def set_product_api_scan_configuration(self, product_id, tool_configuration, service_key_1 = None, service_key_2 = None, service_key_3 = None):
+        """Updates a product with the given properties
+
         """
-        Deletes a product the given id
+        data = {}
+
+        data['product'] = product_id
+        data['tool_configuration'] = int(tool_configuration)
+
+        if service_key_1:
+            data['service_key_1'] = service_key_1
+
+        if service_key_2:
+            data['service_key_2'] = service_key_2
+
+        if service_key_3:
+            data['service_key_3'] = service_key_3
+
+        return self._request('POST', 'product_api_scan_configurations/', data=data)
+
+    def get_product_api_scan_configuration(self, product_id, service_key_1 = None, service_key_2 = None):
         """
-        return self._request('DELETE', 'products/' + str(product_id) + '/')
+        """
+        data = {}
 
+        if service_key_1:
+            data['service_key_1'] = service_key_1
+        if service_key_2:
+            data['service_key_2'] = service_key_2
+        
+        return self._request('GET', f'product_api_scan_configurations/?product={product_id}', data=data)
+    
+    def get_tool_types(self):
+        """
 
+        Receives Tool type configurations
+
+        """
+
+        return self._request('GET', 'tool_types/')
+    
+    def get_tool_types_by_id(self,id):
+        """
+
+        Receives Tool type configurations
+
+        """
+
+        return self._request('GET', f'tool_types/{id}/').data['results']
+    
+    def get_tool_configurations(self, tool_type = None):
+        """
+
+        Receives Tool type configurations
+
+        """
+        data = {}
+
+        if tool_type:
+            data['tool_type'] = tool_type
+
+        return self._request('GET', f'tool_configurations/', data=data).data['results']
+    
+    def get_tool_configurations_by_id(self,id):
+        """
+
+        Receives specific Tool type configurations
+
+        """
+
+        return self._request('GET', f'tool_configurations/{id}/').data['results']
+    
+    def post_tool_configuration(self,name,tool_type,description=None,url=None,authentication_type=None,extras=None,username=None,password=None,auth_title=None,ssh=None,api_key=None):
+        """
+
+        Receives Tool type configurations
+
+        authentication_type can be "API", "Password" or "SSH"
+
+        """
+        data = {}
+
+        data["name"] = name
+        data["tool_type"] = tool_type
+
+        if description:
+            data["description"] = description
+
+        if description:
+            data["description"] = description
+
+        if url:
+            data["url"] = url
+
+        if authentication_type:
+            data["authentication_type"] = authentication_type
+
+        if extras:
+            data["extras"] = extras
+
+        if username:
+            data["username"] = username
+
+        if password:
+            data["password"] = password
+
+        if auth_title:
+            data["auth_title"] = auth_title
+        
+        if ssh:
+            data["ssh"] = ssh
+        
+        if api_key:
+            data["api_key"] = api_key
+        
+        return self._request('POST', 'tool_configurations/',data=data)
+    
+    ###### Product_members API #####
+    def get_product_members(self,id=None,limit=10000,prefetch=None,product_id=None,user_id=None):
+        """ 
+        get list of members of a products.
+        id: integer
+        limit: limit the list of result to be fetched
+        prefetch: List of fields for which to prefetch model instances and add those to the response. it can be [product,role,user]
+        product_id: integer, id of a product
+        user_id: integer, id of a user
+        """
+        params={}
+        if id:
+            params['id'] = id
+        
+        if limit:
+            params['limit'] = limit
+        
+        if prefetch:
+            params['prefetch'] =prefetch
+        
+        if product_id:
+            params['product_id'] = product_id
+            
+        if user_id:
+            params['user_id'] = user_id
+        
+        return self._request('GET','product_members/',params)
+    
+    def add_product_member(self,product,user,role,prefetch={}):
+        """ Add an user to a product
+            product: product id
+            user: user id
+            role: interger(1-5) 1:API_importer, 2:writer, 3:Maintainer, 4:Owner, 5:Reader  
+        """
+        data = {
+            'product': product, 
+            'user': user, 
+            'role': role, 
+            'prefetch': prefetch
+            }
+        return self._request('POST','product_members/', data=data)
+        
+    def edit_product_member(self,id,product,user,role,prefetch={}):
+        """ edit an user to a product
+                id: A unique integer value identifying this product_ member. This can be accessed through get_product_members
+                product: product id
+                user: user id
+                role: interger(1-5) 1:API_importer, 2:writer, 3:Maintainer, 4:Owner, 5:Reader  
+            """
+        data = {
+                'product': product, 
+                'user': user, 
+                'role': role, 
+                'prefetch': prefetch
+                }
+        return self._request('PUT','product_members/' + str(id) + '/',data=data)      
+    
+    def delete_product_member(self,user_id):
+        """ Delete a product member
+
+        Args:
+            user_id (int): A unique integer value identifying this product_ member.
+
+        Returns:
+            response
+        """
+        return self._request('DELETE','product_members/'+ str(user_id) + '/')      
+        
     ###### Test API #######
-    def list_tests(self, engagement_id=None, test_type=None, limit=20, offset=0):
+    def list_tests(self, name=None, engagement_in=None, test_type=None, limit=20000, offset=None):
         """Retrieves all the tests.
 
         :param name_contains: Search by product name.
@@ -477,14 +999,49 @@ class DefectDojoAPIv2(object):
         if offset:
             params['offset'] = offset
 
-        if engagement_id:
-            params['engagement'] = engagement_id
+        if engagement_in:
+            params['engagement'] = engagement_in
 
-        # TODO fix this, it doesn't work for some reason
         if test_type:
             params['test_type'] = test_type
 
         return self._request('GET', 'tests/', params)
+
+    def get_last_test_id(self, engagement_in=None):
+        """Retrieves the last test of a engagement
+
+        """
+
+        params  = {}
+
+        if engagement_in:
+            params['engagement'] = engagement_in
+
+        totaltests = self.list_tests(engagement_in=engagement_in,limit=1).data["count"]
+
+        params['offset'] = totaltests - 1
+        params['prefetch'] = ""
+
+        if totaltests != 0:
+            return self._request('GET', 'tests/', params).data["results"][0]["id"]
+        else:
+            return None
+    
+    def list_test_types(self, name=None,limit=20000):
+        params = {}
+        if limit:
+            params['limit'] = limit
+        if name:
+            params['name'] = name
+        return self._request('GET', 'test_types/',params)
+
+    def list_test_ids(self, engagement_id):
+        test_list=self.list_tests(engagement_in=engagement_id)
+        tests=test_list.data['results']
+        output=[]
+        for iterator in tests:
+            output.append(iterator['id'])
+        return output
 
     def get_test(self, test_id):
         """Retrieves a test using the given test id.
@@ -494,9 +1051,27 @@ class DefectDojoAPIv2(object):
         """
         return self._request('GET', 'tests/' + str(test_id) + '/')
 
-    def create_test(self, engagement_id, test_type, environment, target_start,
-                    target_end, percent_complete=None, lead=None, title=None,
-                    version=None, description=None):
+    def get_test_type(self, test_type_id):
+        """Retrieves a test using the given test id.
+
+        :param test_id: Test identification.
+
+        """
+        return self._request('GET', 'test_types/' + str(test_type_id) + '/')
+    
+    def delete_preview_test(self,test_id,limit=2000000):
+        """checks if a test can be safely deleted"""
+        params = {}
+        if limit:
+            params['limit'] = limit
+        
+        return self._request('GET',f'tests/{test_id}/delete_preview/', params).data['results']
+    
+    def delete_test(self,test_id):
+        """deletes a test"""
+        return self._request('DELETE', 'tests/' + str(test_id) + '/')
+    
+    def create_test(self, engagement_id, test_type, environment, target_start, target_end, percent_complete=None):
         """Creates a product with the given properties.
 
         :param engagement_id: Engagement id.
@@ -504,10 +1079,6 @@ class DefectDojoAPIv2(object):
         :param target_start: Test start date.
         :param target_end: Test end date.
         :param percent_complete: Percentage until test completion.
-        :param lead: Test lead id
-        :param title: Test title/name
-        :param version: Test version
-        :param description: Test description
 
         """
 
@@ -520,23 +1091,10 @@ class DefectDojoAPIv2(object):
             'percent_complete': percent_complete
         }
 
-        if lead:
-            data['lead'] = lead
-
-        if title:
-            data['title'] = title
-
-        if version:
-            data['version'] = version
-
-        if description:
-            data['description'] = description
-
         return self._request('POST', 'tests/', data=data)
 
-    def set_test(self, test_id, engagement_id=None, test_type=None,
-        environment=None, target_start=None, target_end=None,
-        percent_complete=None, title=None, version=None, description=None):
+    def set_test(self, test_id, engagement_id=None, test_type=None, environment=None,
+        target_start=None, target_end=None, percent_complete=None):
         """Creates a product with the given properties.
 
         :param engagement_id: Engagement id.
@@ -544,10 +1102,6 @@ class DefectDojoAPIv2(object):
         :param target_start: Test start date.
         :param target_end: Test end date.
         :param percent_complete: Percentage until test completion.
-        :param title: Test title/name
-        :param version: Test version
-        :param description: Test description
-
 
         """
 
@@ -556,7 +1110,7 @@ class DefectDojoAPIv2(object):
         data = {}
 
         if engagement_id:
-            data['engagement'] = self.engagement_id
+            data['engagement'] = engagement_id
 
         if test_type:
             data['test_type'] = test_type
@@ -568,6 +1122,7 @@ class DefectDojoAPIv2(object):
             data['target_start'] = target_start
         else:
             data['target_start'] = current_test["target_start"]
+
         if target_end:
             data['target_end'] = target_end
         else:
@@ -576,110 +1131,18 @@ class DefectDojoAPIv2(object):
         if percent_complete:
             data['percent_complete'] = percent_complete
 
-        if title:
-            data['title'] = title
-
-        if version:
-            data['version'] = version
-
-        if description:
-            data['description'] = description
-
         return self._request('PUT', 'tests/' + str(test_id) + '/', data=data)
 
-    ###### Test Types API #######
-    def list_test_types(self, name=None, limit=20, offset=0):
-        """Returns filtered list of test types.
-
-        :param name: Test type name.
-        :param limit: Number of records to return.
-        :param offset: The initial index from which to return the results.
-
-        """
-
-        params = {}
-        if name:
-            params['name'] = name
-
-        if limit:
-            params['limit'] = limit
-
-        if offset:
-            params['offset'] = offset
-        
-        return self._request('GET', 'test_types/', params)
-
-    
-    def create_test_type(self, name, static_tool="False", dynamic_tool="False", active="True"):
-        """Creates a test type with given properties.
-
-        :param name: Test type name.
-        :param static_tool: Test type is for static tool.
-        :param dynamic_tool: Test type is for dynamic tool.
-        :param active: Test type is active.
-        :param tags: Tags.
-
-        """
-
-        data = {
-            'name': name,
-            'static_tool': static_tool,
-            'dynamic_tool': dynamic_tool,
-            'active': active
-        }
-
-        return self._request('POST', 'test_types/', data=data)
-
-
-    def get_test_type(self, test_type_id):
-        """Retrieves a test type with the given id.
-
-        :param test_type_id: Test type id.
-        """
-
-        return self._request('GET', 'test_types/' + str(test_type_id) + '/')
-
-    
-    def set_test_type(self, test_type_id, name, static_tool="False", dynamic_tool="False", active="True"):
-        """Updates a test type with the given properties.
-
-        :param test_type_id: Test type id.
-        :param name: Test type name.
-        :param static_tool: Test type is for static tool.
-        :param dynamic_tool: Test type is for dynamic tool.
-        :param active: Test type is active.
-
-        """
-
-        data = {}
-        if name:
-            data['name'] = name
-
-        if static_tool:
-            data['static_tool'] = static_tool
-
-        if dynamic_tool:
-            data['dynamic_tool'] = dynamic_tool
-
-        if active:
-            data['active'] = active
-
-        return self._request('PATCH', 'test_types/' + str(test_type_id) + '/', data=data)
-
-
-    
-
     ###### Findings API #######
-    def list_findings(self, active=None, duplicate=None, mitigated=None, severity=None, verified=None, severity_lt=None,
-        severity_gt=None, severity_contains=None, title_contains=None, url_contains=None, date_lt=None,
-        date_gt=None, date=None, product_id_in=None, engagement_id_in=None, test_id_in=None, build=None, limit=20, offset=0,
-        related_fields=False,
-        is_mitigated=None, tags=None):
+    def list_findings(self, id=None, active=None, is_mitigated=None, duplicate=None, mitigated=None, severity=None, verified=None, severity_lt=None,
+        severity_gt=None, severity_contains=None, title=None, url_contains=None, date_lt=None,
+        date_gt=None, date=None, product_id_in=None, engagement_id_in=None, test_id_in=None, build=None,found_by=None, related_fields=None,limit=20000):
+
         """Returns filtered list of findings.
 
         :param active: Finding is active: (true or false)
         :param duplicate: Duplicate finding (true or false)
-        :param mitigated: Mitigation date.
+        :param is_mitigated: Mitigated finding (true or false)
         :param severity: Severity: Low, Medium, High and Critical.
         :param verified: Finding verified.
         :param severity_lt: Severity less than Low, Medium, High and Critical.
@@ -695,9 +1158,7 @@ class DefectDojoAPIv2(object):
         :param test_in: Test id(s) associated with a finding. (1,2 or 1)
         :param build_id: User specified build id relating to the build number from the build server. (Jenkins, Travis etc.).
         :param limit: Number of records to return.
-        :param offset: The initial index from which to return the results
-        :param is_mitigated: Mitigated finding (true or false).
-        :param tags: Comma separated list of exact tags.
+        :param found_by: specify the scanner of the findins
 
         """
 
@@ -705,8 +1166,8 @@ class DefectDojoAPIv2(object):
         if limit:
             params['limit'] = limit
 
-        if offset:
-            params['offset'] = offset
+        if id:
+            params['id'] = id
 
         if active:
             params['active'] = active
@@ -718,7 +1179,7 @@ class DefectDojoAPIv2(object):
             params['mitigated'] = mitigated
 
         if severity:
-            params['severity__in'] = severity
+            params['severity'] = severity
 
         if verified:
             params['verified'] = verified
@@ -730,10 +1191,10 @@ class DefectDojoAPIv2(object):
             params['severity__gt'] = severity_gt
 
         if severity_contains:
-            params['severity'] = severity_contains
+            params['severity__contains'] = severity_contains
 
-        if title_contains:
-            params['title'] = title_contains
+        if title:
+            params['title'] = title
 
         if url_contains:
             params['url__contains'] = url_contains
@@ -758,31 +1219,31 @@ class DefectDojoAPIv2(object):
 
         if build:
             params['build_id__contains'] = build
+
         if related_fields:
-            params['related_fields'] = 'true'
+            params['related_fields']=related_fields
+
+        if found_by:
+            params['found_by'] = found_by
 
         if is_mitigated:
             params['is_mitigated'] = is_mitigated
 
-        if tags:
-            params['tags'] = tags
-
         return self._request('GET', 'findings/', params)
 
-    def get_finding(self, finding_id):
+    def get_finding(self, finding_id,related_fields="false"):
         """
         Retrieves a finding using the given finding id.
         :param finding_id: Finding identification.
         """
-        return self._request('GET', 'findings/' + str(finding_id) + '/')
+        return self._request('GET', 'findings/' + str(finding_id) + '/?related_fields='+related_fields)
 
     def create_finding(self, title, description, severity, cwe, date, product_id, engagement_id,
         test_id, user_id, impact, active, verified, mitigation, references=None, build=None, line=0,
         file_path=None, static_finding="False", dynamic_finding="False", false_p="False",
         duplicate="False",  out_of_scope="False", under_review="False", under_defect_review="False",
-        numerical_severity=None, found_by=None, tags=None, service=""):
+        numerical_severity=None, found_by=None, tags=None):
         """Creates a finding with the given properties.
-
         :param title: Finding title
         :param description: Finding detailed description.
         :param severity: Finding severity: Low, Medium, High and Critical
@@ -835,15 +1296,13 @@ class DefectDojoAPIv2(object):
             'under_defect_review' : under_defect_review,
             'numerical_severity' : numerical_severity,
             'found_by' : [] if found_by is None else found_by,
-            'tags': [] if tags is None else tags,
-	    'service': service
+            'tags': [] if tags is None else tags
         }
-
         return self._request('POST', 'findings/', data=data)
 
-    def set_finding(self, finding_id, product_id=None, engagement_id=None, test_id=None, title=None, description=None, severity=None, build=None,
+    def set_finding(self, finding_id, product_id, engagement_id, test_id, title=None, description=None, severity=None,
         cwe=None, date=None, user_id=None, impact=None, active=None, verified=None,
-        mitigation=None, references=None, numerical_severity=None):
+        mitigation=None, references=None, build=None):
 
         """Updates a finding with the given properties.
 
@@ -862,27 +1321,19 @@ class DefectDojoAPIv2(object):
         :param mitigation: Steps to mitigate the finding.
         :param references: Details on finding.
         :param build: User specified build id relating to the build number from the build server. (Jenkins, Travis etc.).
-        :param numerical_severity: The numerical representation of the severity (S0, S1, S2, S3, S4).
-        :param service: Service you want associate to the finding. (string)
+
         """
 
         data = {}
 
-        if not title:
-            raise ValueError('title may not be null')
-        data['title'] = title
+        if title:
+            data['title'] = title
 
-        if not description:
-            raise ValueError('description may not be null')
-        data['description'] = description
+        if description:
+            data['description'] = description
 
-        if not severity:
-            raise ValueError('severity may not be null')
-        data['severity'] = severity
-
-        if not numerical_severity:
-            raise ValueError('numerical_severity may not be null')
-        data['numerical_severity'] = numerical_severity
+        if severity:
+            data['severity'] = severity
 
         if cwe:
             data['cwe'] = cwe
@@ -905,10 +1356,10 @@ class DefectDojoAPIv2(object):
         if impact:
             data['impact'] = impact
 
-        if active is not None:
+        if active:
             data['active'] = active
 
-        if verified is not None:
+        if verified:
             data['verified'] = verified
 
         if mitigation:
@@ -922,18 +1373,274 @@ class DefectDojoAPIv2(object):
 
         return self._request('PUT', 'findings/' + str(finding_id) + '/', data=data)
 
-    def delete_finding(self, finding_id):
+    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None):
+        data = {}
 
-        """Deletes a finding with the given id.
+        if title is not None:
+            data['title'] = title
 
-        :param finding_id: ID of finding to delete.
+        if is_mitigated is not None:
+            data['is_mitigated'] = is_mitigated
 
+        if description is not None:
+            data['description'] = description
+
+        if severity is not None:
+            data['severity'] = severity
+
+        if cwe is not None:
+            data['cwe'] = cwe
+
+        if date is not None:
+            data['date'] = date
+
+        if product_id is not None:
+            data['product'] = product_id
+
+        if engagement_id is not None:
+            data['engagement'] = engagement_id
+
+        if test_id is not None:
+            data['test'] = test_id
+
+        if user_id is not None:
+            data['reporter'] = user_id
+
+        if impact is not None:
+            data['impact'] = impact
+
+        if active is not None:
+            data['active'] = active
+
+        if verified is not None:
+            data['verified'] = verified
+
+        if mitigation is not None:
+            data['mitigation'] = mitigation
+
+        if references is not None:
+            data['references'] = references
+
+        if build is not None:
+            data['build_id'] = build
+        
+        if false_p is not None:
+            data['false_p']=false_p
+        
+        if risk_accepted is not None:
+            data['risk_accepted'] = risk_accepted
+
+        return self._request('PATCH', 'findings/' + str(finding_id) + '/', data=data)
+    
+    def delete_findings(self,finding_id):
+        return self._request('DELETE', 'findings/' +str(finding_id) + "/")
+    
+    def accept_risks(self,vulnerability_id,accepted_by,justification=None):
+        data = {}
+        if vulnerability_id is not None:
+            data['vulnerability_id'] = vulnerability_id
+        if justification is not None:
+            data['justification'] = justification
+        if accepted_by is not None:
+            data['accepted_by'] = accepted_by
+
+        return self._request('POST', 'findings/accept_risks/', data=[data])
+
+    def finding_add_note(self,finding_id,entry,private=None,note_type=None):
+        data = {}
+        data['entry'] = entry
+        if private is not None:
+            data['private'] = private
+        if note_type is not None:
+            data['note_type'] = note_type
+
+        return self._request('POST', 'findings/ '+ str(finding_id) +'/notes/', data=data)
+
+    def finding_get_note(self,finding_id):
+        return self._request('GET', 'findings/ '+ str(finding_id) +'/notes/')
+
+    def close_finding(self, finding_id, is_mitigated=True, mitigated=None, false_p=False, out_of_scope=False, duplicate=False):
+
+        """Closes an finding with the given properties."""
+        data = {}
+
+        data['is_mitigated'] = True
+
+        if mitigated == None:
+            data['mitigated'] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%s")
+        if false_p != None:
+            data['false_p'] = false_p
+        if out_of_scope != None:
+            data['out_of_scope'] = out_of_scope
+        if duplicate != None:
+            data['duplicate'] = duplicate
+
+        return self._request('POST', 'findings/' +str(finding_id) + "/close/", data=data)
+
+    ##### SLA Configurations API #####
+    def get_sla_configurations(self):
+        """Get SLA Configurations"""
+        return self._request('GET', 'sla_configurations/')
+
+    def post_sla_configurations(self, name, description, critical, high, medium, low):
         """
+        Create a application analysis to product mapping.
+        :param id: Language identification.
+        """
+        data = {
+            'name': name,
+            'description': description,
+            'critical': critical,
+            'high': high,
+            'medium': medium,
+            'low': low
+        }
+        return self._request('POST', 'sla_configurations/', data=data)
 
-        return self._request('DELETE', 'findings/' + str(finding_id))
+    def put_sla_configurations(self, id, name=None, description=None, critical=None, high=None, medium=None, low=None):
+        """
+        Create a application analysis to product mapping.
+        :param id: Language identification.
+        """
+        data = {
+            'name': name,
+            'description': description,
+            'critical': critical,
+            'high': high,
+            'medium': medium,
+            'low': low
+        }
+        return self._request('PUT', 'sla_configurations/'+ str(id), data=data)
+
+    ##### System Settings API #####
+    def get_system_settings(self):
+        """Get System Settings"""
+
+        return self._request('GET', 'system_settings/')
+
+    def put_system_settings(self, enable_slack_notifications=False,  enable_auditlog=True, enable_deduplication=False, delete_dupulicates=False, max_dupes=0, s_finding_severity_naming=False, false_positive_history= False, display_endpoint_uri=False, enable_jira=False, enable_benchmark=True, enable_template_match= False, engagement_auto_close = False, engagement_auto_close_days= False, enable_product_grade=False, product_grade_a=False, product_grade_b=False, product_grade_c=False, product_grade_d=False, product_grade_f=False, enable_finding_sla=True, sla_critical=30, sla_high=60, sla_medium=90, sla_low=180):
+        """
+        :param enable_auditlog: DefectDojo maintains an audit log for changes made to entities
+        :param enable_deduplication: Deduplicate findings by comparing the findings.
+        :param delete_dupulicates: Duplicate findings will be deleted
+        :param max_dupes: Maximum number of saved duplicates before deletion
+        :param enable_jira: Enables JIRA integration
+        :param enable_benchmark: Enables Benchmarks such as OWASP ASVS
+        :param enable_product_grade: Displays a grade letter next to a product to show overall health
+        :param enable_finding_sla: Enable finding SLAs for time to remediate
+        """
+        data = {
+            'enable_slack_notifications':enable_slack_notifications,
+            'enable_auditlog': enable_auditlog,
+            'enable_deduplication': enable_deduplication,
+            'delete_dupulicates': delete_dupulicates,
+            'max_dupes': max_dupes,
+            'enable_jira': enable_jira,
+            's_finding_severity_naming': s_finding_severity_naming,
+            'false_positive_history': false_positive_history,
+            'display_endpoint_uri': display_endpoint_uri,
+            'enable_benchmark': enable_benchmark,
+            'enable_template_match': enable_template_match,
+            'engagement_auto_close': engagement_auto_close,
+            'engagement_auto_close_days': engagement_auto_close_days,
+            'enable_product_grade': enable_product_grade,
+            'product_grade_a': product_grade_a,
+            'product_grade_b': product_grade_b,
+            'product_grade_c': product_grade_c,
+            'product_grade_d': product_grade_d,
+            'product_grade_f': product_grade_f,
+            'enable_finding_sla': enable_finding_sla,
+            'sla_critical': sla_critical,
+            'sla_high': sla_high,
+            'sla_medium': sla_medium,
+            'sla_low': sla_low
+        }
+        return self._request('PUT', 'system_settings/1/', data=data)
+
+    def patch_system_settings(self, enable_auditlog=None, enable_deduplication=None, delete_dupulicates=None, max_dupes=None, enable_jira=None, s_finding_severity_naming = None, false_positive_history = None, display_endpoint_uri = None, enable_benchmark=None, enable_template_match = None, engagement_auto_close = None, engagement_auto_close_days = None, enable_product_grade=None, product_grade_a = None, product_grade_b = None, product_grade_c = None, product_grade_d = None, product_grade_f = None, enable_finding_sla=None, sla_critical=None, sla_high=None, sla_medium=None, sla_low=None):
+        """
+        :param enable_auditlog: DefectDojo maintains an audit log for changes made to entities
+        :param enable_deduplication: Deduplicate findings by comparing the findings.
+        :param delete_dupulicates: Duplicate findings will be deleted
+        :param max_dupes: Maximum number of saved duplicates before deletion
+        :param enable_jira: Enables JIRA integration
+        :param enable_benchmark: Enables Benchmarks such as OWASP ASVS
+        :param enable_product_grade: Displays a grade letter next to a product to show overall health
+        :param enable_finding_sla: Enable finding SLAs for time to remediate
+        """
+        data = {}
+        if enable_auditlog is not None:
+            data['enable_auditlog'] = enable_auditlog
+
+        if enable_deduplication is not None:
+            data['enable_deduplication'] = enable_deduplication
+
+        if delete_dupulicates is not None:
+            data['delete_dupulicates'] = delete_dupulicates
+
+        if max_dupes is not None:
+            data['max_dupes'] = max_dupes
+
+        if enable_jira is not None:
+            data['enable_jira'] = enable_jira
+
+        if s_finding_severity_naming is not None:
+            data['s_finding_severity_naming'] = s_finding_severity_naming
+
+        if false_positive_history is not None:
+            data['false_positive_history'] = false_positive_history
+
+        if display_endpoint_uri is not None:
+            data['display_endpoint_uri'] = display_endpoint_uri
+
+        if enable_benchmark is not None:
+            data['enable_benchmark'] = enable_benchmark
+
+        if enable_template_match is not None:
+            data['enable_template_match'] = enable_template_match
+
+        if engagement_auto_close is not None:
+            data['engagement_auto_close'] = engagement_auto_close
+
+        if engagement_auto_close_days is not None:
+            data['engagement_auto_close_days'] = engagement_auto_close_days
+
+        if enable_product_grade is not None:
+            data['enable_product_grade'] = enable_product_grade
+
+        if product_grade_a is not None:
+            data['product_grade_a'] = product_grade_a
+
+        if product_grade_b is not None:
+            data['product_grade_b'] = product_grade_b
+
+        if product_grade_c is not None:
+            data['product_grade_c'] = product_grade_c
+
+        if product_grade_d is not None:
+            data['product_grade_d'] = product_grade_d
+
+        if product_grade_f is not None:
+            data['product_grade_f'] = product_grade_f
+
+        if enable_finding_sla is not None:
+            data['enable_finding_sla'] = enable_finding_sla
+
+        if sla_critical is not None:
+            data['sla_critical:'] = sla_critical
+
+        if sla_high is not None:
+            data['sla_high:'] = sla_high
+
+        if sla_medium is not None:
+            data['sla_medium:'] = sla_medium
+
+        if sla_low is not None:
+            data['sla_low:'] = sla_low
+
+        return self._request('PATCH', 'system_settings/1/', data=data)
 
     ##### Build Details API #####
-
     def build_details(self, engagement_id, json):
         """Uploads commit file changes to an engagement.
 
@@ -953,25 +1660,23 @@ class DefectDojoAPIv2(object):
         )
 
     ##### Upload API #####
-    def upload_scan(self, engagement_id, scan_type, file, active, verified, close_old_findings, skip_duplicates, scan_date, tags=None, build=None,
-        version=None, branch_tag=None, commit_hash=None, minimum_severity="Info", auto_group_by=None, environment=None, endpoint_to_add=None):
+
+    def upload_scan(self, engagement_id, scan_type, active, verified, close_old_findings, skip_duplicates, scan_date, file=None, tags=None, build=None, minimum_severity="Low", deduplication_on_engagement=True, close_old_findings_product_scope=False):
         """Uploads and processes a scan file.
 
         :param application_id: Application identifier.
         :param file_path: Path to the scan file to be uploaded.
 
         """
+
         if build is None:
             build = ''
-
-        with open(file, 'rb') as f:
-             filedata = f.read()
-
-        self.logger.debug("filedata:")
-        self.logger.debug(filedata)
+        
+        if self.debug and file:
+            print("filedata:")
+            print(file)
 
         data = {
-            'file': (file, filedata),
             'engagement': ('', engagement_id),
             'scan_type': ('', scan_type),
             'active': ('', active),
@@ -979,19 +1684,19 @@ class DefectDojoAPIv2(object):
             'close_old_findings': ('', close_old_findings),
             'skip_duplicates': ('', skip_duplicates),
             'scan_date': ('', scan_date),
-            'tags': ('', tags),
             'build_id': ('', build),
-            'version': ('', version),
-            'branch_tag': ('', branch_tag),
-            'commit_hash': ('', commit_hash),
             'minimum_severity': ('', minimum_severity),
-            'environment': ('', environment),
-            'endpoint_to_add': ('', endpoint_to_add)
-            # 'push_to_jira': ('', True)
+            'deduplication_on_engagement': ('', deduplication_on_engagement),
+            'close_old_findings_product_scope' : ('', close_old_findings_product_scope)
         }
 
-        if auto_group_by:
-            data['auto_group_by'] = (auto_group_by, '')
+        if tags != None:
+            data["tags"] = tags
+
+        if file != None:
+            with open(file, 'rb') as f:
+                filedata = f.read()
+            data["file"] = filedata
 
         """
         TODO: implement these parameters:
@@ -999,42 +1704,44 @@ class DefectDojoAPIv2(object):
           test_type
           scan_date
         """
-
         return self._request(
             'POST', 'import-scan/',
             files=data
         )
 
     ##### Re-upload API #####
-    def reupload_scan(self, test_id, scan_type, file, active, scan_date, tags=None, build=None, version=None, branch_tag=None, commit_hash=None,
-        minimum_severity="Info", auto_group_by=None, environment=None):
+
+    def reupload_scan(self, test_id, scan_type, active, verified, scan_date, file=None, close_old_findings=True, do_not_reactivate=False, deduplication_on_engagement=True, tags=None, build=None, minimum_severity="Low"):
         """Re-uploads and processes a scan file.
 
         :param test_id: Test identifier.
         :param file: Path to the scan file to be uploaded.
 
         """
+
         if build is None:
             build = ''
 
         data = {
             'test': ('', test_id),
-            'file': open(file, 'rb'),
             'scan_type': ('', scan_type),
             'active': ('', active),
+            'verified': ('', verified),
+            'do_not_reactivate': ('', do_not_reactivate),
+            'deduplication_on_engagement': ('', deduplication_on_engagement),
+            'close_old_findings': ('', close_old_findings),
             'scan_date': ('', scan_date),
-            'tags': ('', tags),
             'build_id': ('', build),
-            'version': ('', version),
-            'branch_tag': ('', branch_tag),
-            'commit_hash': ('', commit_hash),
-	        'minimum_severity': ('', minimum_severity),
-            'environment': ('', environment),
-            # 'push_to_jira': ('', True)
+	        'minimum_severity': ('', minimum_severity)
         }
 
-        if auto_group_by:
-            data['auto_group_by'] = (auto_group_by, '')
+        if tags != None:
+            data["tags"] = tags
+
+        if file != None:
+            with open(file, 'rb') as f:
+                filedata = f.read()
+            data["file"] = filedata
 
         return self._request(
             'POST', 'reimport-scan/',
@@ -1043,7 +1750,7 @@ class DefectDojoAPIv2(object):
 
     ##### Credential API #####
 
-    def list_credentials(self, name=None, username=None, limit=20):
+    def list_credentials(self, name=None, username=None, limit=20000):
         """Retrieves all the globally configured credentials.
         :param name_contains: Search by credential name.
         :param username: Search by username
@@ -1062,7 +1769,7 @@ class DefectDojoAPIv2(object):
 
         return self._request('GET', 'credentials/', params)
 
-    def get_credential(self, cred_id, limit=20):
+    def get_credential(self, cred_id, limit=20000):
         """
         Retrieves a credential using the given credential id.
         :param credential_id: Credential identification.
@@ -1071,7 +1778,7 @@ class DefectDojoAPIv2(object):
 
     ##### Credential Mapping API #####
 
-    def list_credential_mappings(self, name=None, product_id_in=None, engagement_id_in=None, test_id_in=None, finding_id_in=None, limit=20):
+    def list_credential_mappings(self, name=None, product_id_in=None, engagement_id_in=None, test_id_in=None, finding_id_in=None, limit=20000):
         """Retrieves mapped credentials.
 
         :param name_contains: Search by credential name.
@@ -1101,7 +1808,7 @@ class DefectDojoAPIv2(object):
 
         return self._request('GET', 'credential_mappings/', params)
 
-    def get_credential_mapping(self, cred_mapping_id, limit=20):
+    def get_credential_mapping(self, cred_mapping_id, limit=20000):
         """
         Retrieves a credential using the given credential id.
         :param cred_mapping_id: Credential identification.
@@ -1109,7 +1816,7 @@ class DefectDojoAPIv2(object):
         return self._request('GET', 'credential_mappings/' + str(cred_mapping_id) + '/')
 
     ##### App Analysis API #####
-    def list_app_analysis(self, id=None, product_id=None, name=None, limit=20):
+    def list_app_analysis(self, id=None, product_id=None, language_name=None, limit=20000):
         """Retrieves source code languages.
 
         :param id: Search by lanaguage id.
@@ -1129,7 +1836,7 @@ class DefectDojoAPIv2(object):
         if product_id:
             params['product__id'] = product_id
 
-        if name:
+        if language_name:
             params['name__icontains'] = language_name
 
         return self._request('GET', 'app_analysis/', params)
@@ -1172,7 +1879,7 @@ class DefectDojoAPIv2(object):
 
     ##### Language API #####
 
-    def list_languages(self, id=None, product_id=None, language_name=None, limit=20):
+    def list_languages(self, id=None, product_id=None, language_name=None, limit=20000):
         """Retrieves source code languages.
 
         :param id: Search by lanaguage id.
@@ -1240,7 +1947,7 @@ class DefectDojoAPIv2(object):
             for language in languages.data["objects"]:
                 self.delete_language(self.get_id_from_url(language['resource_uri']))
 
-    def list_language_types(self, id=None, language_name=None, limit=20):
+    def list_language_types(self, id=None, language_name=None, limit=20000):
         """Retrieves source code languages.
 
         :param id: Search by lanaguage id.
@@ -1263,7 +1970,7 @@ class DefectDojoAPIv2(object):
 
     ###### Tool API #######
 
-    def list_tool_types(self, resource_id=None, name=None, limit=20):
+    def list_tool_types(self, resource_id=None, name=None, limit=20000):
         """Retrieves all the tool types.
 
         :param name_contains: Search by tool type name.
@@ -1283,7 +1990,7 @@ class DefectDojoAPIv2(object):
 
         return self._request('GET', 'tool_types/', params)
 
-    def list_tools(self, resource_id=None, name=None, tool_type_id=None, url=None, name_icontains=None, limit=20):
+    def list_tools(self, resource_id=None, name=None, tool_type_id=None, url=None, name_icontains=None, limit=20000):
         """Retrieves all the tool configurations.
 
         :param name_contains: Search by tool name.
@@ -1315,7 +2022,7 @@ class DefectDojoAPIv2(object):
         return self._request('GET', 'tool_configurations/', params)
 
     def list_tool_products(self, resource_id=None, url=None, name=None, tool_configuration_id=None,
-        tool_project_id=None, product_id=None, limit=20):
+        tool_project_id=None, product_id=None, limit=20000):
         """Retrieves all the tools.
 
         :param url_contains: Search by url.
@@ -1350,56 +2057,19 @@ class DefectDojoAPIv2(object):
             params['product__id'] = product_id
 
         return self._request('GET', 'tool_product_settings/', params)
+    
+    #Risk Acceptance
 
-    def list_jira_issues(self, finding_id=None, jira_key=None, limit=100, offset=0):
+    def delete_risk_accepance(self,id):
+        """ Delete a Risk Acceptance
+
+        Args:
+            id (int): A unique integer value identifying this risk acceptance.
+
+        Returns:
+            response
         """
-        Retrieves JIRA issues assigned to findings
-
-        :param finding_id: Search for a specific finding ID
-        :param jira_key: Search a specific JIRA key
-        :param limit: Number of records to return.
-        :param offset: The initial index from which to return the result
-        """
-
-        params = {}
-        if finding_id:
-            params['finding_id'] = finding_id
-
-        if jira_key:
-            params['jira_key'] = jira_key
-
-        if limit:
-            params['limit'] = limit
-
-        if offset:
-            params['offset'] = offset
-
-        return self._request('GET', 'jira_finding_mappings/', params)
-
-    def list_products_type(self, id=None, name=None, limit=100, offset=0):
-        """
-        Retrieves product types
-
-        :param id: Search for a specific product type ID
-        :param name: Search a specific product type key
-        :param limit: Number of records to return.
-        :param offset: The initial index from which to return the result
-        """
-
-        params = {}
-        if id:
-            params['id'] = id
-
-        if name:
-            params['name'] = name
-
-        if limit:
-            params['limit'] = limit
-
-        if offset:
-            params['offset'] = offset
-
-        return self._request('GET', 'product_types/', params)
+        return self._request('DELETE','risk_acceptance/'+ str(id) + '/')
 
     # Utility
 
@@ -1439,19 +2109,21 @@ class DefectDojoAPIv2(object):
             proxies = {}
 
         try:
-            self.logger.debug("request:")
-            self.logger.debug(method + ' ' + url)
-            self.logger.debug("headers: " + str(headers))
-            self.logger.debug("params:" + str(params))
-            self.logger.debug("data:" + str(data))
-            self.logger.debug("files:" + str(files))
+            if self.debug:
+                print("request:")
+                print(method + ' ' + url)
+                print("headers: " + str(headers))
+                print("params:" + str(params))
+                print("data:" + str(data))
+                print("files:" + str(files))
 
             response = requests.request(method=method, url=self.host + url, params=params, data=data, files=files, headers=headers,
                                         timeout=self.timeout, verify=self.verify_ssl, cert=self.cert, proxies=proxies)
 
-            self.logger.debug("response:")
-            self.logger.debug(response.status_code)
-            self.logger.debug(response.text)
+            if self.debug:
+                print("response:")
+                print(response.status_code)
+                print(response.text)
 
             try:
                 if response.status_code == 201: #Created new object
@@ -1475,24 +2147,26 @@ class DefectDojoAPIv2(object):
                     return DefectDojoResponse(message="Request-URI Too Large.", response_code=response.status_code, success=False)
                 elif response.status_code == 500:
                     return DefectDojoResponse(message="An error 500 occured in the API.", response_code=response.status_code, success=False, data=response.text)
+                elif response.status_code == 504:
+                    return DefectDojoResponse(message="An error 504 occured in the API.", response_code=response.status_code, success=False, data=response.text)
                 else:
                     data = response.json()
                     return DefectDojoResponse(message="Success", data=data, success=True, response_code=response.status_code)
             except ValueError:
                 return DefectDojoResponse(message='JSON response could not be decoded.', response_code=response.status_code, success=False, data=response.text)
         except requests.exceptions.SSLError:
-            self.logger.warning("An SSL error occurred.")
+            print("An SSL error occurred.")
             return DefectDojoResponse(message='An SSL error occurred.', response_code=response.status_code, success=False)
         except requests.exceptions.ConnectionError:
-            self.logger.warning("A connection error occurred.")
+            print("A connection error occurred.")
             return DefectDojoResponse(message='A connection error occurred.', response_code=response.status_code, success=False)
         except requests.exceptions.Timeout:
-            self.logger.warning("The request timed out")
+            print("The request timed out")
             return DefectDojoResponse(message='The request timed out after ' + str(self.timeout) + ' seconds.', response_code=response.status_code,
                                      success=False)
         except requests.exceptions.RequestException as e:
-            self.logger.warning("There was an error while handling the request.")
-            self.logger.exception(e)
+            print("There was an error while handling the request.")
+            print(e)
             return DefectDojoResponse(message='There was an error while handling the request.', response_code=response.status_code, success=False)
 
 
@@ -1507,7 +2181,6 @@ class DefectDojoResponse(object):
         self.data = data
         self.success = success
         self.response_code = response_code
-        self.logger = logging.getLogger(LOGGER_NAME)
 
     def __str__(self):
         if self.data:
@@ -1516,7 +2189,7 @@ class DefectDojoResponse(object):
             return self.message
 
     def id(self):
-        self.logger.debug("response_code" + str(self.response_code))
+        print("response_code" + str (self.response_code))
         if self.response_code == 400: #Bad Request
             raise ValueError('Object not created:' + json.dumps(self.data, sort_keys=True, indent=4, separators=(',', ': ')))
         return int(self.data["id"])
