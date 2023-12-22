@@ -335,9 +335,9 @@ class DefectDojoAPIv2(object):
 
         return self._request('GET', 'user_contact_infos/', params)
     
-    def get_user_contact_info(self, user_id=None, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
+    def get_user_contact_info(self, id, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
         """Retrieves the user contact info"""
-        return self._request('GET', 'user_contact_infos/'+ str(user_id) + '/')
+        return self._request('GET', 'user_contact_infos/'+ str(id) + '/')
 
     def patch_user_contact_info(self, user_id, title=None, phone_number=None, cell_number=None, twitter_username=None, github_username=None, slack_username=None, slack_user_id=None, block_execution=None, force_password_reset=None):
         """Patches a users contact info
