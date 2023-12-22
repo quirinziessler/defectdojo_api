@@ -303,6 +303,104 @@ class DefectDojoAPIv2(object):
         
         return self._request('GET',f'users/{user_id}/delete_preview/', params).data['results']
 
+    ###### User contact info API #######
+
+    def list_user_contact_info(self, user_id=None, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
+        """Retrieves the user contact info"""
+
+        params  = {}
+        if limit:
+            params['limit'] = limit
+
+        if user_id:
+            params['user'] = user_id
+        if slack_username:
+            params['slack_username'] = slack_username
+        if block_execution:
+            params['block_execution'] = block_execution
+        if cell_number:
+            params['cell_number'] = cell_number
+        if github_username:
+            params['github_username'] = github_username
+        if offset:
+            params['offset'] = offset
+        if prefetch:
+            params['prefetch'] = prefetch
+        if slack_user_id:
+            params['slack_user_id'] = slack_user_id
+        if title:
+            params['title'] = title
+        if twitter_username:
+            params['twitter_username'] = twitter_username
+
+        return self._request('GET', 'user_contact_infos/', params)
+    
+    def get_user_contact_info(self, id, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
+        """Retrieves the user contact info"""
+        return self._request('GET', 'user_contact_infos/'+ str(id) + '/')
+
+    def patch_user_contact_info(self, user_id, title=None, phone_number=None, cell_number=None, twitter_username=None, github_username=None, slack_username=None, slack_user_id=None, block_execution=None, force_password_reset=None):
+        """Patches a users contact info
+
+        :param user_id: User identification.
+
+        """
+        data = {}
+
+        if title:
+            data['title'] = title
+        if phone_number:
+            data['phone_number'] = phone_number
+        if cell_number:
+            data['cell_number'] = cell_number
+        if twitter_username:
+            data["twitter_username"] = twitter_username
+        if github_username:
+            data["github_username"] = github_username
+        if slack_username:
+            data["slack_username"] = slack_username
+        if slack_user_id:
+            data["slack_user_id"] = slack_user_id
+        if block_execution:
+            data["block_execution"] = block_execution
+        if force_password_reset:
+            data["force_password_reset"] = force_password_reset
+        
+        data["user"] = user_id
+
+        return self._request('PATCH', 'user_contact_infos/' + str(user_id) + '/', data=data)
+        
+    def post_user_contact_info(self, user_id, title=None, phone_number=None, cell_number=None, twitter_username=None, github_username=None, slack_username=None, slack_user_id=None, block_execution=None, force_password_reset=None):
+        """Sets a users contact info
+
+        :param user_id: User identification.
+
+        """
+        data = {}
+
+        if title:
+            data['title'] = title
+        if phone_number:
+            data['phone_number'] = phone_number
+        if cell_number:
+            data['cell_number'] = cell_number
+        if twitter_username:
+            data["twitter_username"] = twitter_username
+        if github_username:
+            data["github_username"] = github_username
+        if slack_username:
+            data["slack_username"] = slack_username
+        if slack_user_id:
+            data["slack_user_id"] = slack_user_id
+        if block_execution:
+            data["block_execution"] = block_execution
+        if force_password_reset:
+            data["force_password_reset"] = force_password_reset
+        
+        data["user"] = user_id
+
+        return self._request('POST', 'user_contact_infos/', data=data)
+
     ###### Engagements API #######
     def list_engagements(self, status=None, product_id=None, limit=20000):
         """Retrieves all the engagements.
