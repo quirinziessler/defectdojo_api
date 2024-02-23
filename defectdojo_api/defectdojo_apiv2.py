@@ -216,6 +216,7 @@ class DefectDojoAPIv2(object):
             if user_name == iterate['username']:
                 output = self.get_user_by_id(iterate['id'])
         return output
+    
     def get_user_by_email(self, email):
         """Retrieve user by given email
         :param email: User email
@@ -280,7 +281,7 @@ class DefectDojoAPIv2(object):
         """
         return self._request('DELETE', f'users/{user_id}/')
 
-    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosemgrep
+    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosec
         """password have to change this is justfor development use only"""
         data={"username":user_name,
               "is_active":is_active,
@@ -302,7 +303,7 @@ class DefectDojoAPIv2(object):
             params['limit'] = limit
         
         return self._request('GET',f'users/{user_id}/delete_preview/', params).data['results']
-
+    
     ###### User contact info API #######
 
     def list_user_contact_info(self, user_id=None, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
@@ -1234,7 +1235,7 @@ class DefectDojoAPIv2(object):
     ###### Findings API #######
     def list_findings(self, id=None, active=None, is_mitigated=None, duplicate=None, mitigated=None, severity=None, verified=None, severity_lt=None,
         severity_gt=None, severity_contains=None, title=None, url_contains=None, date_lt=None,
-        date_gt=None, date=None, product_id_in=None, engagement_id_in=None, test_id_in=None, build=None,found_by=None, related_fields=None,limit=20000):
+        date_gt=None, date=None, product_id_in=None, engagement_id_in=None, test_id_in=None, build=None,found_by=None, related_fields=None, offset=None, limit=20000):
 
         """Returns filtered list of findings.
 
@@ -1326,6 +1327,9 @@ class DefectDojoAPIv2(object):
 
         if is_mitigated:
             params['is_mitigated'] = is_mitigated
+
+        if offset:
+            params['offset'] = offset
 
         return self._request('GET', 'findings/', params)
 
