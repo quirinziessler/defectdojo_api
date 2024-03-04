@@ -1475,7 +1475,7 @@ class DefectDojoAPIv2(object):
 
         return self._request('PUT', 'findings/' + str(finding_id) + '/', data=data)
 
-    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None, cvssv3_score=None):
+    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None, cvssv3_score=None, cvssv3=None):
         data = {}
 
         if title is not None:
@@ -1534,6 +1534,9 @@ class DefectDojoAPIv2(object):
         
         if cvssv3_score is not None:
             data['cvssv3_score'] = cvssv3_score
+        
+        if cvssv3 is not None:
+            data['cvssv3'] = cvssv3
 
         return self._request('PATCH', 'findings/' + str(finding_id) + '/', data=data)
     
