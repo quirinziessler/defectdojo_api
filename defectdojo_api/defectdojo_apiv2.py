@@ -1344,7 +1344,7 @@ class DefectDojoAPIv2(object):
         test_id, user_id, impact, active, verified, mitigation, references=None, build=None, line=0,
         file_path=None, static_finding="False", dynamic_finding="False", false_p="False",
         duplicate="False",  out_of_scope="False", under_review="False", under_defect_review="False",
-        numerical_severity=None, found_by=None, tags=None):
+        numerical_severity=None, found_by=None, tags=None, epss_score=None, epss_percentile=None):
         """Creates a finding with the given properties.
         :param title: Finding title
         :param description: Finding detailed description.
@@ -1398,13 +1398,15 @@ class DefectDojoAPIv2(object):
             'under_defect_review' : under_defect_review,
             'numerical_severity' : numerical_severity,
             'found_by' : [] if found_by is None else found_by,
-            'tags': [] if tags is None else tags
+            'tags': [] if tags is None else tags,
+            'epss_score': epss_score,
+            'epss_percentile': epss_percentile
         }
         return self._request('POST', 'findings/', data=data)
 
     def set_finding(self, finding_id, product_id, engagement_id, test_id, title=None, description=None, severity=None,
         cwe=None, date=None, user_id=None, impact=None, active=None, verified=None,
-        mitigation=None, references=None, build=None):
+        mitigation=None, references=None, build=None, epss_score=None, epss_percentile=None):
 
         """Updates a finding with the given properties.
 
@@ -1473,9 +1475,15 @@ class DefectDojoAPIv2(object):
         if build:
             data['build_id'] = build
 
+        if epss_score:
+            data['epss_score'] = epss_score
+        
+        if epss_percentile:
+            data['epss_percentile'] = epss_percentile
+
         return self._request('PUT', 'findings/' + str(finding_id) + '/', data=data)
 
-    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None, cvssv3_score=None, cvssv3=None):
+    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None, cvssv3_score=None, cvssv3=None, epss_score=None, epss_percentile=None):
         data = {}
 
         if title is not None:
@@ -1537,6 +1545,12 @@ class DefectDojoAPIv2(object):
         
         if cvssv3 is not None:
             data['cvssv3'] = cvssv3
+
+        if epss_score is not None:
+            data['epss_score'] = epss_score
+
+        if epss_percentile is not None:
+            data['epss_percentile'] = epss_percentile
 
         return self._request('PATCH', 'findings/' + str(finding_id) + '/', data=data)
     
