@@ -216,6 +216,7 @@ class DefectDojoAPIv2(object):
             if user_name == iterate['username']:
                 output = self.get_user_by_id(iterate['id'])
         return output
+    
     def get_user_by_email(self, email):
         """Retrieve user by given email
         :param email: User email
@@ -280,7 +281,7 @@ class DefectDojoAPIv2(object):
         """
         return self._request('DELETE', f'users/{user_id}/')
 
-    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosemgrep
+    def create_user(self,user_name,first_name=None,last_name=None,email=None,is_active=True,is_superuser=False, password="asdf"): # nosec
         """password have to change this is justfor development use only"""
         data={"username":user_name,
               "is_active":is_active,
@@ -302,6 +303,104 @@ class DefectDojoAPIv2(object):
             params['limit'] = limit
         
         return self._request('GET',f'users/{user_id}/delete_preview/', params).data['results']
+    
+    ###### User contact info API #######
+
+    def list_user_contact_info(self, user_id=None, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
+        """Retrieves the user contact info"""
+
+        params  = {}
+        if limit:
+            params['limit'] = limit
+
+        if user_id:
+            params['user'] = user_id
+        if slack_username:
+            params['slack_username'] = slack_username
+        if block_execution:
+            params['block_execution'] = block_execution
+        if cell_number:
+            params['cell_number'] = cell_number
+        if github_username:
+            params['github_username'] = github_username
+        if offset:
+            params['offset'] = offset
+        if prefetch:
+            params['prefetch'] = prefetch
+        if slack_user_id:
+            params['slack_user_id'] = slack_user_id
+        if title:
+            params['title'] = title
+        if twitter_username:
+            params['twitter_username'] = twitter_username
+
+        return self._request('GET', 'user_contact_infos/', params)
+    
+    def get_user_contact_info(self, id, slack_username=None, block_execution=None, cell_number=None, github_username=None, offset=None, prefetch=None, slack_user_id=None, title=None, twitter_username=None, limit=20000):
+        """Retrieves the user contact info"""
+        return self._request('GET', 'user_contact_infos/'+ str(id) + '/')
+
+    def patch_user_contact_info(self, user_id, title=None, phone_number=None, cell_number=None, twitter_username=None, github_username=None, slack_username=None, slack_user_id=None, block_execution=None, force_password_reset=None):
+        """Patches a users contact info
+
+        :param user_id: User identification.
+
+        """
+        data = {}
+
+        if title:
+            data['title'] = title
+        if phone_number:
+            data['phone_number'] = phone_number
+        if cell_number:
+            data['cell_number'] = cell_number
+        if twitter_username:
+            data["twitter_username"] = twitter_username
+        if github_username:
+            data["github_username"] = github_username
+        if slack_username:
+            data["slack_username"] = slack_username
+        if slack_user_id:
+            data["slack_user_id"] = slack_user_id
+        if block_execution:
+            data["block_execution"] = block_execution
+        if force_password_reset:
+            data["force_password_reset"] = force_password_reset
+        
+        data["user"] = user_id
+
+        return self._request('PATCH', 'user_contact_infos/' + str(user_id) + '/', data=data)
+        
+    def post_user_contact_info(self, user_id, title=None, phone_number=None, cell_number=None, twitter_username=None, github_username=None, slack_username=None, slack_user_id=None, block_execution=None, force_password_reset=None):
+        """Sets a users contact info
+
+        :param user_id: User identification.
+
+        """
+        data = {}
+
+        if title:
+            data['title'] = title
+        if phone_number:
+            data['phone_number'] = phone_number
+        if cell_number:
+            data['cell_number'] = cell_number
+        if twitter_username:
+            data["twitter_username"] = twitter_username
+        if github_username:
+            data["github_username"] = github_username
+        if slack_username:
+            data["slack_username"] = slack_username
+        if slack_user_id:
+            data["slack_user_id"] = slack_user_id
+        if block_execution:
+            data["block_execution"] = block_execution
+        if force_password_reset:
+            data["force_password_reset"] = force_password_reset
+        
+        data["user"] = user_id
+
+        return self._request('POST', 'user_contact_infos/', data=data)
 
     ###### Engagements API #######
     def list_engagements(self, status=None, product_id=None, limit=20000):
@@ -1136,7 +1235,7 @@ class DefectDojoAPIv2(object):
     ###### Findings API #######
     def list_findings(self, id=None, active=None, is_mitigated=None, duplicate=None, mitigated=None, severity=None, verified=None, severity_lt=None,
         severity_gt=None, severity_contains=None, title=None, url_contains=None, date_lt=None,
-        date_gt=None, date=None, product_id_in=None, engagement_id_in=None, test_id_in=None, build=None,found_by=None, related_fields=None,limit=20000):
+        date_gt=None, date=None, product_id_in=None, engagement_id_in=None, test_id_in=None, build=None,found_by=None, related_fields=None, offset=None, limit=20000):
 
         """Returns filtered list of findings.
 
@@ -1228,6 +1327,9 @@ class DefectDojoAPIv2(object):
 
         if is_mitigated:
             params['is_mitigated'] = is_mitigated
+
+        if offset:
+            params['offset'] = offset
 
         return self._request('GET', 'findings/', params)
 
@@ -1381,7 +1483,7 @@ class DefectDojoAPIv2(object):
 
         return self._request('PUT', 'findings/' + str(finding_id) + '/', data=data)
 
-    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None, epss_score=None, epss_percentile=None):
+    def patch_finding(self, finding_id, product_id=None,engagement_id=None, is_mitigated=None, test_id=None, title=None, description=None, severity=None, cwe=None, date=None, user_id=None, impact=None, active=None, verified=None, mitigation=None, references=None, build=None,false_p=None, risk_accepted=None, cvssv3_score=None, cvssv3=None, epss_score=None, epss_percentile=None):
         data = {}
 
         if title is not None:
@@ -1437,6 +1539,12 @@ class DefectDojoAPIv2(object):
         
         if risk_accepted is not None:
             data['risk_accepted'] = risk_accepted
+        
+        if cvssv3_score is not None:
+            data['cvssv3_score'] = cvssv3_score
+        
+        if cvssv3 is not None:
+            data['cvssv3'] = cvssv3
 
         if epss_score is not None:
             data['epss_score'] = epss_score
